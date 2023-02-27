@@ -1,0 +1,405 @@
+---
+title: "Maduneme_Proposal"
+author: "Emmanuel Maduneme"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE, echo=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      warning = FALSE,
+                      eval = TRUE,
+                      message = FALSE)
+library(pacman)
+p_load(tidyverse, esquisse, dlookr, rio, here, readr, tidytext, knitr, janitor, expss, hrbrthemes, dplyr, flextable, labelled, sjlabelled,  gghighlight, colorblindr)
+
+p_load(ragg)
+```
+
+### Data Source
+
+The `afrobarometer_ngr` data is a publicly available data set from [**Afrobarometer**](https://www.afrobarometer.org/data/), an non-profit African survey organization based in Ghana. According to their website, they "conducts public attitude surveys on democracy, governance, the economy, and society." The data set is part of their many data sets from African countries.
+
+Specifically, the `afrobarometer_ngr` data set is a 2022 8th round comprehensive survey on several topics from perceptions of democracy, elections and the media to attitudes towards different institutions in Nigeria
+
+```{r importing_data, echo=TRUE, include=TRUE}
+## Importing Data
+afrobarometer_ngr <- import(here("data", "afrobarometer_release-data_nig_r8_en_2021-03-31.sav"),
+       setclass = "tbl_df") 
+```
+
+For the purpose of this class, I intend to select only data points that pertain to the questions that I am interested in. This new data frame is called `selected_afrob`. I am still working on the data and will rename and perform other EDA eventually.
+
+```{r, results='hide', echo=TRUE, include=TRUE}
+
+selected_afrob <-  afrobarometer_ngr %>% 
+  select(RESPNO, REGION, Q101:Q103, Q13:Q15C, Q16A, starts_with("Q41"), Q50A:Q50P_NIG, Q55A:Q56)
+
+
+## Descriptive Stats 
+ summary(selected_afrob)
+
+## Recode Variables Trust
+#   Missing    Not at all Just a little      Somewhat        A lot      Don’t know 
+#       NA             0             1             2             3         4
+
+temp <- selected_afrob[,12:25]
+temp[temp== -1] <- NA
+temp[temp==8] <- NA
+temp[temp== 9] <- 4
+temp[temp==0 ] <- 0
+temp[temp==1] <- 1
+temp[temp==2] <- 2
+temp[temp==3] <- 3
+
+temp <- set_labels(temp, labels = c( "Don’t know" = 4, "Not at all" = 0,"Just a little" = 1, "Somewhat" = 2, "A lot" = 3))
+selected_afrob[,12:25] <- temp
+
+look_for(selected_afrob)  ## This dislays all the labels 
+
+
+## Create Subset of dataset on Trust
+temp2 <- selected_afrob %>%    
+  select(starts_with("Q41"))
+  
+## Renaming Variables Trust
+temp2 <- temp2 %>%
+  rename( "President" = "Q41A",  "National Assembly" = "Q41B","INEC" = "Q41C", 
+          "Elected lG Council" = "Q41D", "The Ruling Party (APC)" = "Q41E",
+          "Opposition Parties" ="Q41F", "Police" = "Q41G",
+          "Military/Army" = "Q41H", "Judiciary" = "Q41I",
+          "Tax/revenue officials" = "Q41J", "Traditional leaders" = "Q41K",
+          "Religious leaders" = "Q41L","State Governor" = "Q41M_NIG",
+          "State Legislature" = "Q41N_NIG") 
+  
+  selected_afrob[,12:25] <- temp2
+  
+  
+  #   Missing    Not at all Just a little      Somewhat        A lot      Don’t know 
+#       NA             0             1             2             3         4
+  
+  ## Clean data for plotting
+ Trust_Manipulation <- temp2 %>% 
+   characterize() %>% 
+ pivot_longer(
+   cols = c(1:14),
+    names_to = "institutions",
+    values_to = "trust_scores") %>% 
+   #Not at all/ Just a little = 1, Somewhat  = 2, A lot/Don't know = 3
+   ## mutate(trust_scores_recd = case_when( trust_scores < 1 ~ 1,
+   ##                                     trust_scores == 2 ~ 2,
+  ##                                      trust_scores > 2 ~ 3)) %>% 
+    group_by(institutions) %>% 
+   na.omit()
+ 
+ 
+## Stacked Bar chart for trust in different institutions
+  trust_plot <- Trust_Manipulation %>% 
+   ggplot(aes(reorder(institutions, trust_scores_recd)))+
+  geom_bar(aes(fill = as.factor(trust_scores_recd)),  position="fill") +
+   coord_flip() +
+    scale_fill_manual(values = c('#8da0cb','#fc8d62','#66c2a5'),
+                      labels=c("Not at all/ A little", "Somewhat", "Alot")) +
+    theme_bw() +
+     theme(axis.text.y = element_text(size = 10, color = "grey10"),
+           axis.text.x = element_text(size = 10, color = "grey10"),
+        panel.grid.major.x = element_line(color = "grey70",
+                                          size = 1.0,
+                                          linetype = 3),
+        legend.title=element_blank()) +
+     labs(title = "Institutions Nigerians Trust More and Less",
+        x = "",
+        y = "Frequency",
+        caption = "Data from Afrobarometer 2022 Round 8 Nigeria")
+   trust_plot
+
+
+
+```
+
+```{r, exploring_data, echo=TRUE, include=TRUE}
+
+
+percep <- selected_afrob %>% 
+  select(starts_with("Q50"))
+
+percep[percep== -1] <- NA
+percep[percep==8] <- NA
+percep[percep== 9] <- 5
+percep[percep==0 ] <- 0
+percep[percep==1] <- 1
+percep[percep==2] <- 2
+percep[percep==3] <- 3
+percep[percep==4] <- 4
+
+## Missing   Very badly Fairly badly  Fairly well    Very well  Don't know
+#  NA           1         2             3                   4     5
+
+percep <- set_labels(percep, labels = c("Missing" = NA, 
+                                        "Very badly" = 1, 
+                                        "Fairly badly" = 2,
+                                        "Fairly well" = 3,
+                                        "Very well" = 4,
+                                   "Don't know" = 5))
+
+ val_lab(percep$Q50A)    
+
+selected_afrob[,26:41] <- percep
+
+
+look_for(percep)
+  
+ 
+
+
+percep2 <- percep %>%
+  rename("Economy" = "Q50A",
+          "Living Conditions" = "Q50B", "Job Creation" = "Q50C",
+          "Keeping Prices" = "Q50D",
+          "Narrowing Income Gap" ="Q50E",
+          "Crime Reduction"  = "Q50F",
+          "Basic Health Services" = "Q50G",
+          "Education" = "Q50H",
+          "Water and Santiation" = "Q50I",
+          "Fighting Corruption" = "Q50J",
+          "Infrastructure" = "Q50K",
+          "Electricity" = "Q50L",
+          "Resolving Violent Crime" = "Q50M",
+          "Needs of Youths" = "Q50N",
+          "RIghts & Opportunities for Disabled People" = "Q50O",
+          "Addressing Armed Extremism" = "Q50P_NIG")
+  
+  look_for(percep2)
+  
+  
+percep3 <- percep2 %>% 
+    select(1:3, 6, 7, 8, 10, 12, 16) %>%
+    pivot_longer(
+   cols = c(1:9),
+    names_to = "Issues",
+    values_to = "ratings") 
+
+j <- percep3 %>% 
+    group_by(Issues) %>% 
+    summarize(avg_score = mean(ratings)) %>% 
+    arrange(desc(avg_score))
+
+
+
+
+j %>% 
+  ggplot(aes(reorder(Issues, avg_score), y=avg_score)) +
+  geom_col(fill = '#8da0cb') +
+ ## geom_point(stat='identity', col = "#66c2a5" , size=10) +
+   ylim(0.0, 2.2) +
+  coord_flip()
+
+plot10 <- j %>% 
+  ggplot(aes(reorder(Issues, avg_score), y=avg_score)) +
+ geom_point(size=4, col = '#43a2ca') + 
+  geom_segment(aes(x=Issues, 
+                   xend=Issues, 
+                   y=0, 
+                   yend=avg_score), col = '#43a2ca')+
+   ylim(0.0, 2.5) +
+  coord_flip() 
+      
+p_load(plotly)
+
+ggplotly(plot10)
+
+
+
+```
+
+[Mapping Nigeria](https://cran.r-project.org/web/packages/naijR/vignettes/nigeria-maps.html)
+
+```{r}
+selected_afrob <-  selected_afrob %>% 
+  mutate(states = REGION)
+
+unique(selected_afrob$Q55A)
+
+
+  unique(selected_afrob$Q55B)
+val_lab(selected_afrob$Q55B)
+
+
+   ##             Missing                  Never Less than once a month 
+ ##                   -1                      0                      1 
+  ## A few times a month     A few times a week              Every day 
+  ##                   2                      3                      4 
+ ##              Refused             Don't know 
+  ##                   8                      9 
+    
+media_use <- selected_afrob %>% 
+    select(Q55A:Q55E)
+  
+media_use[media_use== -1] <- NA
+media_use[media_use==8] <- NA
+media_use[media_use== 9] <- 5
+media_use[media_use==0 ] <- 0
+media_use[media_use==1] <- 1
+media_use[media_use==2] <- 2
+media_use[media_use==3] <- 3   
+media_use[media_use==4] <- 4
+
+media_use <- set_labels(media_use, labels = c("Missing" = NA, 
+                                              "Never" = 0,
+                                        "Less than once a month" = 1, 
+                                        "A few times a month" = 2,
+                                        "A few times a week" = 3,
+                                        "Every day" = 4,
+                                   "Don't know" = 5))
+val_lab(media_use$Q55A)
+
+
+
+
+
+
+
+media_use <- media_use %>%
+  rename("Radio" = "Q55A",
+         "Television" = "Q55B",
+         "Newspaper" = "Q55C",
+         "Internet" = "Q55D",
+         "Social Media" = "Q55E")
+
+names(selected_afrob)
+
+selected_afrob[,42:46] <- media_use
+
+names(selected_afrob)
+
+media_use_main <- selected_afrob %>% 
+  select(1, 2, 48, 42:46) %>%
+  rename("ID" = "RESPNO",
+         "REGION" = "REGION",
+         "states" = "states",
+         "Radio" = "Q55A",
+         "Television" = "Q55B",
+         "Newspaper" = "Q55C",
+         "Internet" = "Q55D",
+         "Social Media" = "Q55E") %>% 
+  to_character(REGION, states)
+ media_use_main$states <-  str_to_sentence(media_use_main$states)
+
+
+ 
+ p_load(naijR)
+ 
+
+
+ sort(unique(media_use_main$states))
+   
+  media_use_main <- media_use_main %>% 
+   mutate(states = case_when(states == "Fct abuja" ~ "Federal Capital Territory",
+                             states == "Abia" ~ "Abia",
+                             states == "Cross river" ~ "Cross River",
+                             TRUE ~ (states)),
+          state = states)
+    
+  
+p_load(naijR)
+# Create a data frame and view top rows
+ss <- states()
+numStates <- length(ss)
+vv <- sample(LETTERS[1:5], numStates, TRUE)
+Nigerian_states <- tibble(states = ss, letter = vv)
+dd <- data.frame(state = ss, letter = vv)
+#(search for useful packages scripts to find full_set)
+full_set <- merge(x = dd, y = media_use_main, by = "state")
+
+full_set2 <- full_set %>% 
+ select(1, 6:10) %>% 
+  pivot_longer(
+    cols = c(2:6),
+    names_to = "media_type",
+    values_to = "rating"
+  ) %>% 
+  mutate(usage = case_when(rating == 5 ~ 5,
+                           rating == 0 ~ 0,
+                           rating == 1 ~ 1,
+                           rating == 2 ~ 3,
+                           rating == 3 ~ 3,
+                           rating  > 3 ~ 4)) %>% 
+    group_by(media_type, state) %>% 
+  summarise(avg_use = mean(usage)) %>% 
+  mutate(media_type = reorder(media_type, avg_use)) %>% 
+  arrange(desc(avg_use))
+
+
+plot_by_state <- full_set2 %>% 
+  ggplot(aes(reorder(media_type, avg_use), avg_use, fill = media_type)) +
+  geom_col() +
+  facet_wrap(~ state) +
+   coord_flip() +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+names(full_set)
+
+ 
+
+full_set %>% 
+   add_column(Country = "Nigeria") %>% 
+ rename(Social_Media = "Social Media") %>% 
+ select(1, 6:9, 11) %>%
+   pivot_longer(
+    cols = c(2:5),
+    names_to = "media_type",
+    values_to = "ratings") %>% 
+    group_by(state, media_type) %>% 
+  summarise(total_rating = sum(ratings)) %>% 
+  view()
+
+
+
+
+  summarise(tot_Television = sum(Television),
+            tot_Radio = sum(Radio),
+            tot_Newspaper = sum(Newspaper),
+            tot_Internet = sum(Internet),
+            
+            )
+
+
+
+ DataEditR::data_edit()
+plot_by_state
+
+
+                           
+ 
+
+
+```
+
+### Research Questions
+
+With Nigerians preparing for its general elections between February and March 2023, it becomes expedient to evaluate public opinion and perceptions of the pressing issues of governance in the country and how it relates to the media. The goal of this visualization would be to evaluate the perceptions of Nigerians about the state of the country, how that relates to their trust in political institutions. Finally, what roles the media plays in relation to trust in elections and attitudes towards political institutions. Hence, the following questions?
+
+1.  What are the perceptions of Nigerians about Ethe National government?
+2.  How trusting are Nigerians of the political institutions?
+3.  How is the media related to trust in the National government?
+
+### Identification of the intended audience for each visualization
+
+The audience intended for the visualization are made up of two sets of people: the general Nigeria public who are going to vote in an election between February and March. It would provide some insights on how they perceive the political institutions and electoral system they are voting for.
+
+The second type of audience would be advertisers and businesses who are looking to understand the media ecosystems; the data provides insights on what type of media people rely on for information and how they feel about those platforms. This will also help guide business goals and decisions on ad spending and placement. In addition, it should also present them with a quick scan of public opinion on socio-political issues in Nigeria.
+
+### Preliminary ideas (even hand sketches) of different visualizations
+
+Here are some of the charts I have in mind:
+
+```{r, include=TRUE, echo=FALSE, results='asis', fig.width= 7, fig.height= 5.5, fig.align='center'}
+
+knitr::include_graphics(here("graphics", "Maps Nigeria.png"))
+
+knitr::include_graphics(here("graphics", "Barchart.png"))
+
+knitr::include_graphics(here("graphics", "barplot trust in institutions.png"))
+
+```

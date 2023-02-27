@@ -1,0 +1,160 @@
+---
+title: "Lab 2"
+author: "Student Name"
+date: "YYYY-MM-DD"
+output:
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message = FALSE,
+                      warning = FALSE)
+library(pacman)
+p_load(readr, here, rio, tidyverse, janitor, gghighlight, colorspace)
+```
+
+The purpose of this lab is to use color to your advantage. You will be asked to use a variety of color palettes, and use color for its three main purposes: (a) distinguish groups from each other, (b) represent data values, and (c) highlight particular data points.
+
+## Data
+
+We’ll be working with the honey production data from #tidytuesday. The [#tidytuesday repo](https://github.com/rfordatascience/tidytuesday/tree/master/data/2018/2018-05-21) contains the full data, but we’ll work with just the cleaned up version, using the **honeyproduction.csv** file, which is posted on the website.
+
+The data is in under Dataset tab of Week 4 module on Canvas.
+
+You can import the dataset using the code below.
+
+```{r, echo=T,eval=F}
+here()
+d <- read.csv(here("data", "honeyproduction.csv"))
+
+```
+
+1. Visualize the total production of honey (**totalprod**) across years (**year**) by state (**state**). Use color to highlight the west coast (Washington, Oregon, and California) with a different color used for each west coast state.
+  + **Hint 1**: I'm not asking for a specific kind of plot, just one that does the preceding. But if you're trying to visualize change over time, a bar chart is likely not going to be the best choice.
+  + **Hint 2**: To get each state to be a different color you should either map state to color (for your layer that adds the west coast colors) or use the [gghighlight](https://yutannihilation.github.io/gghighlight/index.html) package.
+  
+```{r}
+bee_plot <- d %>% 
+  ggplot(aes(year, totalprod/1e6, group = state)) +
+  geom_line(col = "grey") +
+  geom_line(aes(col = state),
+            data = filter(d, state == c("WA", "OR", "CA")), size = 2)+
+  theme_classic() +
+  labs(x = "Years",
+       y = "Total Honey Production (in Millions)")
+```
+
+
+2. Reproduce the plot according three different kinds of color blindness using the `cvd_grid` package from the `colorblindr` package.
+
+```{r}
+p_load(colorblindr)
+cvd_grid(bee_plot)
+
+```
+
+3. Reproduce the plot using a color blind safe palette of your choice. 
+```{r}
+### Using a CVD inclusive Palettes
+bee_plot +
+  scale_color_OkabeIto()
+```
+
+
+4. Download the file **'us census bureau regions and divisions.csv'** from the course website denoting the region and division of each state. 
+  + Join the file with your honey file. 
+  + Produce a bar plot displaying the average honey for each state (collapsing across years). 
+  + Use color to highlight the region of the country the state is from. 
+  + Note patterns you notice. 
+  
+  I noticed that Northeast states do not produce great amounts of honey, compared to Northwestern and Western states. 
+  
+```{r}
+us_regions <- read.csv(here("data", "us census bureau regions and divisions.csv")) %>% 
+  clean_names()
+glimpse(us_regions)
+
+us_regions <- us_regions %>% 
+   rename(state_name = state,
+         state = state_code)
+ 
+honey_data <- left_join(d, us_regions)
+honey_data
+
+honey_data %>% 
+  group_by(state_name, region) %>% 
+    summarise(avg_honey_prod = mean(totalprod, na.rm = T)) %>% 
+   ggplot(aes(avg_honey_prod, fct_reorder(state_name, avg_honey_prod))) +
+    geom_col(aes(fill = region),
+            col = "white",
+            alpha = 0.8) +
+   ## Changing x axis into nominal numbers with comma
+   scale_x_continuous(expand = c(0,0), 
+                      labels = scales::comma) +
+   scale_fill_OkabeIto(name = "Regions") +
+   theme_bw() +
+   labs(x = "Average Honey Production(lbs)",
+        y = "") +
+    theme(axis.text = element_text(face = "bold", size = 7),
+      axis.title.x = element_text(face = "bold", size = 10)) 
+   
+   
+```
+
+The plot should look like similar to the following plot (see the pdf).
+
+5. Create a heatmap displaying the average honey production across years by *region* (averaging across states within region). The plot should look like similar to the following plot (see the pdf).
+
+```{r}
+p_load(reshape2)
+
+
+colorspace::hcl_palettes(plot = TRUE)
+
+honey_data %>% 
+  group_by(year, region) %>% 
+  summarise(avg_prodctn = mean(totalprod, na.rm = T)/1e6) %>% 
+  ggplot(aes(year, fct_reorder(region, avg_prodctn)))  +
+  geom_tile(aes(fill = avg_prodctn), col = "#76728d") +
+  scale_fill_viridis_c("Honey Production\n(millions of lbs)\n") +
+    coord_fixed() +
+  labs(x = "Year",
+       y = "") +
+  theme(legend.position = c(0.25, 1.15), 
+                            legend.direction = "horizontal", 
+        legend.title = element_text(size = 7, face = "bold"),
+        legend.key.size = unit(.5, 'cm'),
+        legend.key.height = unit(.5, "cm"))
+
+      
+```
+
+6. Create at least one more plot of your choosing using color to distinguish,
+represent data values, or highlight. If you are interested in producing maps, I
+suggest grabbing a simple features data frame of the US using the Albers projection
+by doing the following:
+
+```{r eval = FALSE}
+remotes::install_github("hrbrmstr/albersusa")
+library(albersusa)
+us <- usa_sf()
+```
+
+You can then join your honey data with this dataset. We'll talk about geographic
+data more later in the course, but it is pretty easy to work with. For example,
+you could use the data frame above to create a map of the US with:
+
+```{r eval = FALSE}
+ggplot(us) +
+  geom_sf()
+```
+
+You will likely get a few warnings but they are most likely ignorable. You could also theme it more from here, but if you join it with your
+honey data, you should be able to `fill` and/or `facet` by specific variables.
+
+Note - this is a little trickier than it initially seems because you can "lose"
+states in your map if they don't have any data (there are only 44 states
+represented in your honey dataset). You should still plot all states, but just 
+have them not be filled according to your fill scale if there is no data.
+
+For instance, below is a plot created based on this data for inspiration (see the pdf).

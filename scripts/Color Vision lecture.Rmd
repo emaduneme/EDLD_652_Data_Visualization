@@ -1,0 +1,51 @@
+---
+title: "Color Vision"
+author: "Emmanuel Maduneme"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+## Color Vision
+
+Use the [colorbrewer](https://colorbrewer2.org/#type=sequential&scheme=BuGn&n=3) to select color palettes that are colorblind friendly.
+
+Another site for colorblind friendly: [coolors](https://coolors.co/).
+
+```{r}
+## Use this package to for color palettes
+p_load(colorspace, scales)
+
+## to call the palletes
+hcl_palettes(plot = T)
+
+## Scales pkg helps you get the hexcodes
+q4 <- colorspace::qualitative_hcl(4, palette = "Dark 3")
+
+q4
+show_col(q4)
+
+## You can check those with CVD or CB can see the color
+show_col(deutan(q4))
+
+```
+
+
+Use `colorblindr` to check how plot shows for different cvd. It can help pick after plot has been made. 
+```{r}
+
+remotes::install_github("wilkelab/cowplot")
+install.packages("colorspace", repos = "http://R-Forge.R-project.org")
+
+
+remotes::install_github("clauswilke/colorblindr")
+
+
+```
+
+
+After getting your colorbrewer palettes, create a vector of selected hexcodes and then use the ggplot function: `scale_fill_manual(values= vector)`, 

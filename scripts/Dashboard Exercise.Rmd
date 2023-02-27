@@ -1,0 +1,61 @@
+---
+title: "Untitled"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: row
+    vertical_layout: fill
+    social: menu
+---
+
+```{r setup, include=FALSE, echo=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      warning = FALSE,
+                      eval = TRUE,
+                      message = FALSE)
+library(pacman)
+p_load(tidyverse, esquisse, dlookr, rio, here, readr, tidytext, knitr, janitor, expss, hrbrthemes, flextable, labelled, sjlabelled, colorblindr, forcats, treemap, flexdashboard)
+
+p_load(ragg)
+```
+
+Sidebar {.sidebar}
+======================================================================
+
+I am going to make a note here
+
+```{r}
+
+```
+
+
+## row {data-height="10"}
+======================================================================
+
+### Chart A
+
+```{r, eval=TRUE}
+
+
+
+```
+
+### Chart b
+
+```{r,  eval=TRUE}
+
+
+```
+
+## row {data-height="10"}
+
+### Chart C
+
+```{r}
+
+```
+
+### Chart D
+
+```{r}
+
+```
